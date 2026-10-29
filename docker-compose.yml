@@ -27,6 +27,26 @@ services:
       - microservices-network
     restart: unless-stopped
 
+  redis:
+    # Shared session store for the session-based auth across Order, Payment,
+    # and Email - each connects directly, independently, to validate a
+    # session; nobody calls the Auth service itself on the request path.
+    # No volume on purpose: sessions are disposable cache data, not data
+    # that needs to survive a restart - unlike RabbitMQ's durable queues,
+    # losing this just means everyone logs in again.
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379" # lets you inspect it from the host with redis-cli if needed
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
   mailpit:
     # A fake SMTP server with a web inbox - nothing it "sends" leaves this
     # machine. Email.Api connects to it over plain SMTP, same as it would
